@@ -1,0 +1,13 @@
+Django
+djangorestframework
+psycopg2-binary
+django-cors-headers
+redis
+django-redis
+pymongo
+requests
+web3
+celery
+djangorestframework-simplejwt
+channels
+#aave-python==0.2.0
