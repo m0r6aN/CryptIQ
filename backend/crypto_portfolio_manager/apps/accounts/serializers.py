@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import User, UserPreferences
+from .models import CEXAPI
 
 User = get_user_model()
 
@@ -24,3 +25,9 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserPreferences
         fields = '__all__'
+        
+
+class CEXAPISerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CEXAPI
+        fields = ['exchange', 'api_key', 'api_secret']

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import PortfolioPage from './pages/PortfolioPage';
 import LoginPage from './pages/LoginPage';
-// import RegisterPage from './pages/RegisterPage';
+import RegisterPage from './pages/RegisterPage';
 import TradePage from './pages/TradePage';
 import AIChatPage from './pages/AIChatPage';
 import Navbar from './components/Navbar';
@@ -21,7 +21,7 @@ function App() {
         <Route path="/strategies" component={StrategyPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/settings" component={SettingsPage} />
-        {/* <Route path="/register" component={RegisterPage} /> */}
+        <Route path="/register" component={RegisterPage} />
         <Route path="/" component={HomePage} exact />
       </Switch>
     </Router>

@@ -38,3 +38,11 @@ class UserPreferences(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     notifications_enabled = models.BooleanField(default=True)
     # Other preference fields
+
+class CEXAPI(models.Model):
+    exchange = models.CharField(max_length=50)
+    api_key = models.CharField(max_length=255)
+    api_secret = models.CharField(max_length=255)
+    
+    def __str__(self):
+        return self.exchange
