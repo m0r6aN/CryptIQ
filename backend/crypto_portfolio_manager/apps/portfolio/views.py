@@ -1,9 +1,11 @@
 from rest_framework import generics, permissions
 from rest_framework import status
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Trade
-from .serializers import TradeSerializer
+from django.core.exceptions import PermissionDenied
+from crypto_portfolio_manager.apps.trading.models import Trade
+from crypto_portfolio_manager.apps.trading.serializers import TradeSerializer
+
+from crypto_portfolio_manager.apps.ai_engine.sentiment_analysis import generate_ai_recommendations_for_user
 
 from .models import (
     Portfolio, ExchangeAccount, Wallet,
@@ -39,6 +41,15 @@ class TradeHistoryView(generics.ListAPIView):
     def get_queryset(self):
         return Trade.objects.filter(user=self.request.user).order_by('-created_at')
 
+class AITradeRecommendationsView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # Here’s where the AI magic happens!
+        user = request.user
+        recommendations = generate_ai_recommendations_for_user(user)
+        
+        return Response(recommendations, status=status.HTTP_200_OK)
 
 class ExchangeAccountListCreateView(generics.ListCreateAPIView):
     serializer_class = ExchangeAccountSerializer

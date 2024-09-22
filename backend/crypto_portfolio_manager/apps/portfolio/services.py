@@ -1,4 +1,6 @@
-from backend.crypto_portfolio_manager.apps.portfolio.models import Portfolio, User
+# portfolio/services.py
+
+from crypto_portfolio_manager.apps.portfolio.models import Portfolio, User
 import requests
 from fbprophet import Prophet
 import pandas as pd
@@ -60,3 +62,24 @@ def hedge_risk(user):
         hedge_action = "Buy USDT to hedge against BTC downturn"
         return hedge_action
     return "No hedge needed"
+
+def calculate_amount_to_sell(coin):
+    # Example: Calculate a percentage of the total holdings to sell (e.g., 20%)
+    total_holdings = get_total_holdings(coin)
+    amount_to_sell = total_holdings * 0.2  # Sell 20% of holdings
+    return amount_to_sell
+
+def calculate_amount_to_buy(coin):
+    # Example: Calculate a fixed amount to buy based on available funds
+    available_funds = get_available_funds()
+    current_price = get_current_price()
+    amount_to_buy = available_funds / current_price  # Buy as much as the funds allow
+    return amount_to_buy
+
+def get_total_holdings(coin):
+    # Placeholder for fetching total holdings of the coin from the user's portfolio
+    return 10  # Replace with actual portfolio fetching logic
+
+def get_available_funds():
+    # Placeholder for fetching available funds for trading
+    return 1000  # Replace with actual logic

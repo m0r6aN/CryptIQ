@@ -1,5 +1,8 @@
 Django
 djangorestframework
+djangorestframework-simplejwt
+numpy
+psycopg2
 psycopg2-binary
 django-cors-headers
 redis
@@ -8,6 +11,10 @@ pymongo
 requests
 web3
 celery
-djangorestframework-simplejwt
 channels
+python-dotenv
+transformers
+Prophet
+stable_baselines3
+gym
 #aave-python==0.2.0

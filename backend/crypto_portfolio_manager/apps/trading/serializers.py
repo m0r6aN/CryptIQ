@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Trade
-from portfolio.serializers import AssetSerializer
+from crypto_portfolio_manager.apps.portfolio.serializers import AssetSerializer
 
 class TradeSerializer(serializers.ModelSerializer):
     asset = AssetSerializer()

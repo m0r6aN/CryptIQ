@@ -1,5 +1,19 @@
+# ai_engine/services.py
+
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from celery import shared_task
+import logging
+
+from crypto_portfolio_manager.apps.portfolio.services import calculate_amount_to_buy, calculate_amount_to_sell
+from crypto_portfolio_manager.apps.trading.services import execute_trade
+from crypto_portfolio_manager.apps.ai_engine.predictive_models import predict_price, train_reinforcement_agent
+from crypto_portfolio_manager.apps.ai_engine.sentiment_analysis import fetch_sentiment_over_time, generate_ai_recommendations_for_user, get_sentiment_analysis
+from crypto_portfolio_manager.apps.market_data.services import calculate_market_volatility, fetch_price_trend, get_current_market_state
+from crypto_portfolio_manager.apps.portfolio.models import Portfolio, User
+from crypto_portfolio_manager.apps.trading.models import Trade
+
 def ai_stop_loss_take_profit(user, coin):
-    # Example logic to adjust based on volatility and sentiment
     sentiment = get_sentiment_analysis(coin)
     volatility = calculate_market_volatility(coin)  # Fetch volatility data from APIs
 
@@ -15,9 +29,6 @@ def ai_stop_loss_take_profit(user, coin):
         take_profit = 0.20
 
     return {'stop_loss': stop_loss, 'take_profit': take_profit}
-
-import numpy as np
-from sklearn.linear_model import LinearRegression
 
 def optimize_trades(user):
     # Fetch past trades
@@ -54,18 +65,6 @@ def ai_trade_timing(coin):
     else:
         return 'Hold'
 
-def train_reinforcement_agent():
-    # Define your environment (custom trading environment needed)
-    env = create_custom_trading_env()
-
-    # Initialize the agent
-    model = PPO('MlpPolicy', env, verbose=1)
-
-    # Train the agent
-    model.learn(total_timesteps=10000)
-    
-    return model
-
 def ai_trade_agent(user):
     model = train_reinforcement_agent()
     
@@ -89,23 +88,6 @@ def generate_ai_dashboard(user):
 
     return dashboard_data
 
-def predict_future_sentiment(text):
-    sentiment_model = pipeline('sentiment-analysis')
-    future_sentiment = sentiment_model(text)
-    
-    return future_sentiment
-
-def get_sentiment_trends(user):
-    coins = Portfolio.objects.get(user=user).coins.all()
-
-    future_sentiments = {}
-    for coin in coins:
-        news_articles = fetch_coin_related_news(coin.symbol)
-        predicted_sentiment = predict_future_sentiment(news_articles)
-        future_sentiments[coin.symbol] = predicted_sentiment
-    
-    return future_sentiments
-
 def ai_momentum_strategy(user, coin):
     sentiment = get_sentiment_analysis(coin)
     price_trend = fetch_price_trend(coin)  # Calculate based on moving averages or trend lines
@@ -117,40 +99,15 @@ def ai_momentum_strategy(user, coin):
     else:
         return 'Hold'
     
+   
 @shared_task
 def auto_rebalance(user_id):
-    user = User.objects.get(id=user_id)
-    recommendations = generate_ai_recommendations_for_user(user)
-    
-    for coin in recommendations['underperforming']:
-        # Example rebalance logic: sell underperformers, buy rising coins
-        execute_trade(coin, 'sell', calculate_amount_to_sell(coin))
-        execute_trade(recommendations['rising_trends'][0], 'buy', calculate_amount_to_buy(coin))
-    
-    return f'Rebalanced portfolio for {user.username}'
-
-def predict_price(coin):
-    # Example historical data
-    data = {
-        'ds': ['2023-01-01', '2023-01-02', '2023-01-03'],  # Dates
-        'y': [40000, 41000, 40500]  # Prices for the coin
-    }
-    df = pd.DataFrame(data)
-    
-    model = Prophet()
-    model.fit(df)
-    
-    # Forecasting the next 7 days
-    future = model.make_future_dataframe(periods=7)
-    forecast = model.predict(future)
-    
-    return forecast[['ds', 'yhat']]  # Predicted prices
-
-def suggest_rebalancing(user):
-    recommendations = generate_ai_recommendations_for_user(user)
-    
-    rebalance_actions = []
-    for coin in recommendations['underperforming']:
-        rebalance_actions.append(f'Sell {coin} and buy {recommendations["rising_trends"][0]}')
-    
-    return rebalance_actions
+    try:
+        user = User.objects.get(id=user_id)
+        recommendations = generate_ai_recommendations_for_user(user)
+        for coin in recommendations['underperforming']:
+            execute_trade(coin, 'sell', calculate_amount_to_sell(coin))
+            execute_trade(recommendations['rising_trends'][0], 'buy', calculate_amount_to_buy(coin))
+        return f'Rebalanced portfolio for {user.username}'
+    except Exception as e:
+        logging.error(f"Error during auto-rebalance for user {user_id}: {e}")
