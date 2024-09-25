@@ -1,6 +1,7 @@
 from strategies.base_strategy import BaseStrategy
 from utils.indicators import MovingAverage
 
+
 class TrendingStrategy(BaseStrategy):
     def __init__(self, exchange=None, symbol="BTC/USDT"):
         super().__init__()

@@ -58,6 +58,21 @@ def calculate_ichimoku(data):
     })
     return ichimoku
 
+import pandas as pd
+import numpy as np
+
+def calculate_obv(df):
+    obv = [0]
+    for i in range(1, len(df)):
+        if df['close'].iloc[i] > df['close'].iloc[i-1]:
+            obv.append(obv[-1] + df['volume'].iloc[i])
+        elif df['close'].iloc[i] < df['close'].iloc[i-1]:
+            obv.append(obv[-1] - df['volume'].iloc[i])
+        else:
+            obv.append(obv[-1])
+    return pd.Series(obv, index=df.index)
+
+
 def calculate_token_metrics_indicator(data: pd.DataFrame, indicator_name: str):
     if indicator_name in data.columns:
         return data[indicator_name]

@@ -4,7 +4,7 @@ import numpy as np
 import time
 from typing import List, Dict
 
-class BlofimTradingBot:
+class BlofinTradingBot:
     def __init__(self, api_key: str, secret: str, symbols: List[str], timeframe: str = '6h',
                  a: float = 1.0, c: int = 10, h: bool = False, leverage: float = 1.0):
         self.exchange = ccxt.blofin({
@@ -28,20 +28,6 @@ class BlofimTradingBot:
         df.set_index('timestamp', inplace=True)
         return df
 
-    def calculate_atr(self, df: pd.DataFrame) -> float:
-        high_low = df['high'] - df['low']
-        high_close = np.abs(df['high'] - df['close'].shift())
-        low_close = np.abs(df['low'] - df['close'].shift())
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = np.max(ranges, axis=1)
-        return true_range.rolling(self.c).mean().iloc[-1]
-
-    def calculate_atr_trailing_stop(self, df: pd.DataFrame, atr: float) -> float:
-        src = df['close'] if not self.h else df['close']  # We don't have Heikin Ashi in this implementation
-        n_loss = self.a * atr
-        atr_trailing_stop = src.iloc[-1] - n_loss if src.iloc[-1] > src.iloc[-2] else src.iloc[-1] + n_loss
-        return atr_trailing_stop
-
     def check_cross(self, df: pd.DataFrame, atr_trailing_stop: float) -> str:
         current_close = df['close'].iloc[-1]
         previous_close = df['close'].iloc[-2]
@@ -52,12 +38,6 @@ class BlofimTradingBot:
             return 'sell'
         else:
             return 'hold'
-
-    def calculate_position_size(self, symbol: str) -> float:
-        balance = self.exchange.fetch_balance()
-        equity = balance['total']['USDT']
-        current_price = self.exchange.fetch_ticker(symbol)['last']
-        return (equity * self.leverage) / current_price
 
     def execute_trade(self, symbol: str, side: str, amount: float):
         try:

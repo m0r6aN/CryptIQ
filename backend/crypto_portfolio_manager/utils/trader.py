@@ -1,4 +1,4 @@
-from trading.exchange_api import ExchangeAPI
+from backend.crypto_portfolio_manager.utils.exchange_api import ExchangeAPI
 from utils.risk_management import RiskManagement
 
 class Trader:

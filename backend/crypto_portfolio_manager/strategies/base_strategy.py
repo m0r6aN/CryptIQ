@@ -6,7 +6,7 @@ class BaseStrategy:
     def __init__(self, trade_executor, risk_manager, exchange=None):
         self.trade_executor = trade_executor
         self.risk_manager = risk_manager
-        self.exchange = exchange  # Exchange instance (e.g., Binance)
+        self.exchange = exchange
 
     def on_data(self, data):
         raise NotImplementedError("Must implement on_data method")
@@ -16,21 +16,8 @@ class BaseStrategy:
 
     def should_exit_trade(self):
         raise NotImplementedError
-    
-    def calculate_position_size(self, price, leverage):
-        # Fetch the balance from the exchange
-        balance = self.exchange.fetch_balance()
-        usdt_balance = balance['free']['USDT']
-        
-        # Define risk percentage (e.g., 2% of the balance)
-        risk_percentage = 0.02
-        risk_capital = usdt_balance * risk_percentage  # Amount willing to risk
 
-        # Calculate position size based on risk, price, and leverage
-        position_size = (risk_capital / price) * leverage
-        
-        # Ensure position size does not exceed available balance
-        if position_size * price > usdt_balance:
-            position_size = usdt_balance / price
-
-        return position_size
+    def calculate_position_size(self, price, account_balance, risk_per_trade=0.02, leverage=1):
+        risk_amount = account_balance * risk_per_trade
+        position_size = (risk_amount / price) * leverage
+        return min(position_size, account_balance / price)
