@@ -1,3 +1,6 @@
+# crypto_portfolio_manager/apps/bot/scanner.py
+
+from time import time
 from dotenv import load_dotenv
 import sys
 import os
@@ -9,7 +12,6 @@ import pandas as pd
 import platform
 from aiohttp import ClientSession, TCPConnector
 from playsound import playsound
-import talib
 
 # Configure logging and paths
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,6 +21,7 @@ sys.path.append(project_root)
 
 from utils.data_fetcher import process_coin
 from utils.shared import DataFetcher
+from utils.playsound_local import play_sound
 
 FINISHED_SOUND_FILE = os.path.join(project_root, 'audio', 'tada.mp3')
 EXIT_FOUND_SOUND = os.path.join(project_root, 'audio', 'windows-critical-stop.mp3')
@@ -51,15 +54,32 @@ def get_blofin_holdings(type: str='future'):
         'enableRateLimit': True,
         'options': {'defaultType': type}
     })
-    try:
-        balance = exchange.fetch_balance()
-        positions = balance.get('info', {}).get('positions', [])
-        holdings = [position['symbol'].split(':')[0] for position in positions if float(position['positionAmt']) != 0]
-        logging.info(f"Current holdings: {', '.join(holdings)}")
-        return holdings
-    except Exception as e:
-        logging.error(f"Error fetching Blofin holdings: {e}")
-        return []
+
+    retries = 0
+    while retries < MAX_RETRIES:
+        try:
+            balance = exchange.fetch_balance()
+            positions = balance.get('info', {}).get('positions', [])
+            holdings = [position['symbol'].split(':')[0] for position in positions if float(position['positionAmt']) != 0]
+            logging.info(f"Current holdings: {', '.join(holdings)}")
+            return holdings
+        except Exception as e:
+            logging.error(f"Error fetching Blofin holdings (attempt {retries+1}): {e}")
+            retries += 1
+            if retries >= MAX_RETRIES:
+                return []
+            time.sleep(INITIAL_BACKOFF * retries)  # Exponential backoff
+
+    
+async def retry_api_call(func, retries=MAX_RETRIES, backoff=INITIAL_BACKOFF):
+    for attempt in range(retries):
+        try:
+            return await func()
+        except Exception as e:
+            logging.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
+            await asyncio.sleep(backoff * (2 ** attempt))
+    logging.error(f"Failed after {retries} attempts.")
+    return None
 
 async def interruptible_sleep(seconds):
     try:
@@ -87,7 +107,7 @@ async def main():
                 for result in results:
                     if result['Signal'] == 'Exit' and result['Symbol'] in holdings:
                         try:
-                            playsound(EXIT_FOUND_SOUND)
+                            play_sound(EXIT_FOUND_SOUND)
                             logging.info(f"Exit signal for held coin: {result['Symbol']}")
                         except Exception as e:
                             logging.error(f"Error playing exit sound: {e}")
@@ -101,7 +121,7 @@ async def main():
                 logging.info(f"Results saved to {filename}")
 
                 try:
-                    playsound(FINISHED_SOUND_FILE)
+                    play_sound(FINISHED_SOUND_FILE)
                 except Exception as e:
                     logging.error(f"Error playing finished sound: {e}")
 

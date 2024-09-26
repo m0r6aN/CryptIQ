@@ -25,6 +25,14 @@ def calculate_fib_stop_loss(entry_price, fib_levels, position_type):
         return fib_levels['level_38.2']  # Stop-loss above the 38.2% retracement
     return None
 
+def calculate_position_params(df, entry_price, position_type):
+    fib_levels = calculate_fibonacci_levels(df)
+    tp_levels = calculate_fib_take_profits(entry_price, fib_levels, position_type)
+    stop_loss = calculate_fib_stop_loss(entry_price, fib_levels, position_type)
+    leverage = calculate_leverage(df['ADX'].iloc[-1], df['ATR'].iloc[-1], calculate_trend_strength(df))
+    
+    return tp_levels, stop_loss, leverage
+
 def calculate_fib_take_profits(entry_price, fib_levels, position_type):
     if position_type == 'Long':
         return [fib_levels['level_23.6'], fib_levels['level_38.2'], fib_levels['level_50']]  # Laddering take-profits

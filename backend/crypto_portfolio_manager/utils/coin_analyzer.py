@@ -1,3 +1,5 @@
+# crypto_portfolio_manager/utils/coin_analyzer.py
+
 import os
 import sys
 import talib
@@ -11,14 +13,14 @@ project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 sys.path.append(project_root)
 
 from utils.shared import DataFetcher
-from utils.calculators import calculate_fib_stop_loss, calculate_fib_take_profits, calculate_fibonacci_levels, calculate_leverage, calculate_stop_loss, calculate_take_profit
-from utils.indicators import calculate_atr, calculate_trend_strength
+from utils.calculators import calculate_fib_stop_loss, calculate_fib_take_profits, calculate_fibonacci_levels, calculate_leverage, calculate_position_params, calculate_stop_loss, calculate_take_profit
+from utils.indicators import calculate_trend_strength
 
 async def analyze_weekly(df):
     # Calculate indicators
     df['SMA_50'] = talib.SMA(df['close'], timeperiod=50)
     df['SMA_200'] = talib.SMA(df['close'], timeperiod=200)
-    
+
     # Determine trend
     if df['SMA_50'].iloc[-1] > df['SMA_200'].iloc[-1]:
         return 'Bullish'
@@ -47,50 +49,19 @@ async def analyze_4h(df, symbol):
     df['CCI'] = talib.CCI(df['high'], df['low'], df['close'], timeperiod=20)
     df['volume_ma'] = df['volume'].rolling(window=50).mean()
 
-    # Entry Criteria (Long Position):
-    if (df['SAR'].iloc[-1] < df['close'].iloc[-1] and
-        df['ADX'].iloc[-1] > 25 and
-        df['CCI'].iloc[-1] > -100 and
-        df['CCI'].iloc[-2] <= -100 and
-        df['volume'].iloc[-1] > df['volume_ma'].iloc[-1]):
-        
+    # Entry Criteria (Long Position)
+    if (df['SAR'].iloc[-1] < df['close'].iloc[-1] and df['ADX'].iloc[-1] > 25 and df['CCI'].iloc[-1] > -100 and df['CCI'].iloc[-2] <= -100):
         entry_price = df['close'].iloc[-1]
-        fib_levels = calculate_fibonacci_levels(df)
-        tp_levels = calculate_fib_take_profits(entry_price, fib_levels, "Long")
-        stop_loss = calculate_fib_stop_loss(entry_price, fib_levels, "Long")
-        leverage = calculate_leverage(df['ADX'].iloc[-1], df['ATR'].iloc[-1], calculate_trend_strength(df))
-        
+        tp_levels, stop_loss, leverage = calculate_position_params(df, entry_price, "Long")
         logging.info(f"Long position for {symbol} with leverage {leverage}, Entry at {entry_price}, Take profits at {tp_levels}, Stop-loss at {stop_loss}")
-        return {
-            'Symbol': symbol,
-            'Signal': 'Long',
-            'Entry': entry_price,
-            'Leverage': leverage,
-            'TakeProfits': tp_levels,
-            'StopLoss': stop_loss
-        }
-
-    # Exit Criteria (Short Position):
-    elif (df['SAR'].iloc[-1] > df['close'].iloc[-1] or
-          df['ADX'].iloc[-1] < 25 or
-          df['CCI'].iloc[-1] < 100 and
-          df['CCI'].iloc[-2] >= 100):
-        
+        return {'Symbol': symbol, 'Signal': 'Long', 'Entry': entry_price, 'Leverage': leverage, 'TakeProfits': tp_levels, 'StopLoss': stop_loss}
+    
+    # Exit Criteria (Short Position)
+    elif df['SAR'].iloc[-1] > df['close'].iloc[-1] or df['ADX'].iloc[-1] < 25:
         exit_price = df['close'].iloc[-1]
-        fib_levels = calculate_fibonacci_levels(df)
-        tp_levels = calculate_fib_take_profits(exit_price, fib_levels, "Short")
-        stop_loss = calculate_fib_stop_loss(exit_price, fib_levels, "Short")
-        leverage = calculate_leverage(df['ADX'].iloc[-1], df['ATR'].iloc[-1], calculate_trend_strength(df))
-        
+        tp_levels, stop_loss, leverage = calculate_position_params(df, exit_price, "Short")
         logging.info(f"Short position for {symbol} with leverage {leverage}, Entry at {exit_price}, Take profits at {tp_levels}, Stop-loss at {stop_loss}")
-        return {
-            'Symbol': symbol,
-            'Signal': 'Short',
-            'Entry': exit_price,
-            'Leverage': leverage,
-            'TakeProfits': tp_levels,
-            'StopLoss': stop_loss
-        }
+        return {'Symbol': symbol, 'Signal': 'Short', 'Entry': exit_price, 'Leverage': leverage, 'TakeProfits': tp_levels, 'StopLoss': stop_loss}
 
     return {'Symbol': symbol, 'Signal': 'Hold', 'Leverage': 1}
 
@@ -328,3 +299,27 @@ async def analyze_all_timeframes(symbol):
             }
 
     return {'Symbol': symbol, 'Signal': 'No Clear Signal', 'Confidence': 'Low'}
+
+def generate_trade_signal(df, direction, entry_conditions, exit_conditions, symbol):
+        if all(entry_conditions):
+            return create_signal(df, "Long", symbol)
+        elif any(exit_conditions):
+            return create_signal(df, "Short", symbol)
+        return {"Symbol": symbol, "Signal": "Hold", "Leverage": 1}
+
+def create_signal(df, signal_type, symbol):
+        entry_price = df['close'].iloc[-1]
+        fib_levels = calculate_fibonacci_levels(df)
+        tp_levels = calculate_fib_take_profits(entry_price, fib_levels, signal_type)
+        stop_loss = calculate_fib_stop_loss(entry_price, fib_levels, signal_type)
+        leverage = calculate_leverage(df['ADX'].iloc[-1], df['ATR'].iloc[-1], calculate_trend_strength(df))
+
+        logging.info(f"{signal_type} position for {symbol}: Entry at {entry_price}, TP at {tp_levels}, SL at {stop_loss}, Leverage {leverage}")
+        return {
+            "Symbol": symbol,
+            "Signal": signal_type,
+            "Entry": entry_price,
+            "Leverage": leverage,
+            "TakeProfits": tp_levels,
+            "StopLoss": stop_loss
+        }

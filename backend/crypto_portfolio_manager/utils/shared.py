@@ -1,8 +1,12 @@
+# crypto_portfolio_manager/utils/shared.py
+
+import asyncio
 import logging
 import os
 import sys
 import pandas as pd
 import ccxt
+import aiohttp
 
 # Configure logging and paths
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,17 +30,29 @@ class DataFetcher:
         data['datetime'] = pd.to_datetime(data['timestamp'], unit='ms')
         return data
 
-    def fetch_ohlcv_data(self, symbol='BTC/USDT', timeframe='1m', limit=1000):
-        exchange_data = self.fetch_exchange_data(symbol, timeframe, limit)
-        if self.token_metrics_api_key:
-            token_metrics_symbol = symbol.split('/')[0]
-            tm_data = self.fetch_token_metrics_data(token_metrics_symbol)
-            data = pd.merge_asof(exchange_data.sort_values('datetime'),
-                                 tm_data.sort_values('datetime'),
-                                 on='datetime', direction='nearest')
-            return data
-        else:
-            return exchange_data
+    async def fetch_ohlcv_data(session, symbol, timeframe, limit):
+        try:
+            url = f"https://api.crypto.com/v2/public/get-ohlcv?symbol={symbol}&timeframe={timeframe}&limit={limit}"
+            async with session.get(url) as response:
+                response.raise_for_status()  # Ensure we raise HTTP errors
+                data = await response.json()
+                return data['result']['data']
+        except aiohttp.ClientResponseError as e:
+            logging.error(f"HTTP Error {e.status} when fetching OHLCV data for {symbol}: {e.message}")
+        except Exception as e:
+            logging.error(f"Unexpected error fetching OHLCV data for {symbol}: {e}")
+        return None
+
+        
+    async def fetch_data_with_retries(url, session):
+        try:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    raise Exception(f"Failed to fetch data: {response.status}")
+                return await response.json()
+        except Exception as e:
+            logging.error(f"Error fetching data from {url}: {e}")
+            return None
         
     async def get_historical_data(self, session, symbol, timeframe, limit, aggregate):
         url = f"https://min-api.cryptocompare.com/data/v2/histo{timeframe}"
@@ -59,6 +75,11 @@ class DataFetcher:
         except Exception as e:
             logging.error(f"Request failed for {symbol}: {e}")
             return None
+        
+    async def get_historical_data_batch(self, session, symbols, timeframe, limit):
+        tasks = [asyncio.wait_for(self.get_historical_data(session, symbol, timeframe, limit), timeout=10) for symbol in symbols]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return [result for result in results if not isinstance(result, Exception)]
 
     @staticmethod
     async def get_top_coins(session, limit):

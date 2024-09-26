@@ -1,3 +1,6 @@
+# crypto_portfolio_manager/utils/data_fetcher.py
+
+import asyncio
 import logging
 import sys
 import os
@@ -21,8 +24,13 @@ LIMIT = 200
 # You can now use the DataFetcher class and other shared functions from shared.py
 
 async def process_coin(session, symbol, timeframe, limit):
-    data_fetcher = DataFetcher()
-    df = await data_fetcher.get_historical_data(session, symbol, timeframe, limit, 1)
-    if df is not None:
-        return await analyze_all_timeframes(df, symbol)
+    try:
+        # Add a timeout for API call
+        data = await asyncio.wait_for(DataFetcher.get_historical_data(session, symbol, timeframe, limit), timeout=10)
+        analyzed_data = analyze_all_timeframes(data)
+        return analyzed_data
+    except asyncio.TimeoutError:
+        logging.error(f"Timeout when processing coin {symbol}")
+    except Exception as e:
+        logging.error(f"Error processing coin {symbol}: {e}")
     return None
